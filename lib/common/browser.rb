@@ -24,7 +24,7 @@ class Browser
 
   attr_reader :hydra, :cache_dir
 
-  attr_accessor :referer, :cookie
+  attr_accessor :referer, :cookie, :vhost
 
   # @param [ Hash ] options
   #
@@ -73,10 +73,8 @@ class Browser
     @max_threads = 20
     # 10 minutes, at this time the cache is cleaned before each scan. If this value is set to 0, the cache will be disabled
     @cache_ttl = 600
-    # 2s
-    @request_timeout = 2000
-    # 1s
-    @connect_timeout = 1000
+    @request_timeout = 60 # 60s
+    @connect_timeout = 10 # 10s
     @user_agent = "WPScan v#{WPSCAN_VERSION} (http://wpscan.org)"
   end
 
@@ -137,7 +135,15 @@ class Browser
         @basic_auth
       )
     end
-
+    
+    if vhost
+      params = Browser.append_params_header_field(
+        params,
+        'Host',
+        vhost
+      )
+    end
+    
     params.merge!(referer: referer)
     params.merge!(timeout: @request_timeout) if @request_timeout
     params.merge!(connecttimeout: @connect_timeout) if @connect_timeout

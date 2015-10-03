@@ -14,7 +14,7 @@ class WpItems < Array
     self.wp_target = wp_target
   end
 
-  # @param [String] argv
+  # @param [String] args
   #
   # @return [ void ]
   def add(*args)
@@ -67,6 +67,7 @@ class WpItems < Array
   end
 
   protected
+  
   # @return [ Class ]
   def item_class
     Object.const_get(self.class.to_s.gsub(/.$/, ''))

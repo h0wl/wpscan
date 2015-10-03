@@ -2,7 +2,7 @@
 
 shared_examples 'WpUser::Existable' do
   let(:mod) { WpUser::Existable }
-  let(:fixtures_dir) { MODELS_FIXTURES + '/wp_user/existable' }
+  let(:fixtures_dir) { File.join(MODELS_FIXTURES, 'wp_user', 'existable') }
 
   describe '::login_from_author_pattern' do
     after do
@@ -26,6 +26,13 @@ shared_examples 'WpUser::Existable' do
     context 'when pattern not found' do
       it 'returns nil' do
         @text     = 'im not from this world'
+        @expected = nil
+      end
+    end
+
+    context 'when no author given' do
+      it 'returns nil' do
+        @text     = '<a href="http://wp.lab/author/" class="btn btn-default">See Posts</a>'
         @expected = nil
       end
     end
@@ -145,11 +152,20 @@ shared_examples 'WpUser::Existable' do
     end
 
     context 'with a 200' do
-      let(:resp_opt) { { code: 200, body: File.new(fixtures_dir + '/admin.html').read } }
+      let(:resp_opt) { { code: 200, body: File.read(File.join(fixtures_dir, 'admin.html')) } }
 
       it 'loads the correct values' do
         @login        = 'admin'
         @display_name = 'admin d-name'
+      end
+    end
+
+    context 'when chinese chars' do
+      let(:resp_opt) { { code: 200, body: File.read(File.join(fixtures_dir, 'chinese_chars.html')) } }
+
+      it 'loads the correct values' do
+        @login = '一路疯下去'
+        @display_name = nil
       end
     end
 

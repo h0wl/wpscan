@@ -38,7 +38,7 @@ Example cases which do not require a commercial license, and thus fall under the
  - Using WPScan to test your own systems.
  - Any non-commercial use of WPScan.
 
-If you need to purchase a commercial license or are unsure whether you need to purchase a commercial license contact us - wpscanteam@gmail.com. 
+If you need to purchase a commercial license or are unsure whether you need to purchase a commercial license contact us - team@wpscan.org.
 
 We may grant commercial licenses at no monetary cost at our own discretion if the commercial usage is deemed by the WPScan Team to significantly benefit WPScan.
 
@@ -88,11 +88,11 @@ WPScan comes pre-installed on the following Linux distributions:
 - [Kali Linux](http://www.kali.org/)
 - [Pentoo](http://www.pentoo.ch/)
 - [SamuraiWTF](http://samurai.inguardians.com/)
-- [ArchAssault](https://archassault.org/)
+- [BlackArch](http://blackarch.org/)
 
 Prerequisites:
 
-- Ruby >= 1.9.2 - Recommended: 2.2.0
+- Ruby >= 1.9.2 - Recommended: 2.2.3
 - Curl >= 7.21  - Recommended: latest - FYI the 7.29 has a segfault
 - RubyGems      - Recommended: latest
 - Git
@@ -104,21 +104,21 @@ If installed from Github update the code base with ```git pull```. The databases
 
 Before Ubuntu 14.04:
 
-    sudo apt-get install libcurl4-gnutls-dev libopenssl-ruby libxml2 libxml2-dev libxslt1-dev ruby-dev
+    sudo apt-get install libcurl4-openssl-dev libopenssl-ruby libxml2 libxml2-dev libxslt1-dev ruby-dev
     git clone https://github.com/wpscanteam/wpscan.git
     cd wpscan
     sudo gem install bundler && bundle install --without test
 
 From Ubuntu 14.04:
 
-    sudo apt-get install libcurl4-gnutls-dev libxml2 libxml2-dev libxslt1-dev ruby-dev build-essential
+    sudo apt-get install libcurl4-openssl-dev libxml2 libxml2-dev libxslt1-dev ruby-dev build-essential libgmp-dev
     git clone https://github.com/wpscanteam/wpscan.git
     cd wpscan
     sudo gem install bundler && bundle install --without test
 
 ####Installing on Debian:
 
-    sudo apt-get install git ruby ruby-dev libcurl4-gnutls-dev make
+    sudo apt-get install git ruby ruby-dev libcurl4-openssl-dev make
     git clone https://github.com/wpscanteam/wpscan.git
     cd wpscan
     sudo gem install bundler
@@ -126,7 +126,7 @@ From Ubuntu 14.04:
 
 ####Installing on Fedora:
 
-    sudo yum install gcc ruby-devel libxml2 libxml2-devel libxslt libxslt-devel libcurl-devel
+    sudo yum install gcc ruby-devel libxml2 libxml2-devel libxslt libxslt-devel libcurl-devel patch
     git clone https://github.com/wpscanteam/wpscan.git
     cd wpscan
     sudo gem install bundler && bundle install --without test
@@ -155,12 +155,13 @@ Apple Xcode, Command Line Tools and the libffi are needed (to be able to install
     curl -sSL https://get.rvm.io | bash -s stable
     source ~/.rvm/scripts/rvm
     echo "source ~/.rvm/scripts/rvm" >> ~/.bashrc
-    rvm install 2.1.4
-    rvm use 2.1.4 --default
+    rvm install 2.2.3
+    rvm use 2.2.3 --default
     echo "gem: --no-ri --no-rdoc" > ~/.gemrc
     gem install bundler
     git clone https://github.com/wpscanteam/wpscan.git
     cd wpscan
+    gem install bundler
     bundle install --without test
 
 #### KNOWN ISSUES
@@ -310,28 +311,13 @@ Debug output...
 
 ```ruby wpscan.rb --url www.example.com --debug-output 2>debug.log```
 
-#### WPSTOOLS ARGUMENTS
-
-    -v, --verbose                                                Verbose output
-        --check-vuln-ref-urls, --cvru                            Check all the vulnerabilities reference urls for 404
-        --check-local-vulnerable-files, --clvf LOCAL_DIRECTORY   Perform a recursive scan in the LOCAL_DIRECTORY to find vulnerable files or shells
-    -s, --stats                                                  Show WpScan Database statistics.
-        --spellcheck, --sc                                       Check all files for common spelling mistakes.
-
-
-#### WPSTOOLS EXAMPLES
-
-Locally scan a wordpress installation for vulnerable files or shells:
-
-```ruby wpstools.rb --check-local-vulnerable-files /var/www/wordpress/```
-
 #### PROJECT HOME
 
 [http://www.wpscan.org](http://www.wpscan.org)
 
 #### VULNERABILITY DATABASE
 
-[https://www.wpvulndb.com](https://www.wpvulndb.com)
+[https://wpvulndb.com](https://wpvulndb.com)
 
 #### GIT REPOSITORY
 

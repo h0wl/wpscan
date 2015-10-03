@@ -2,6 +2,9 @@
 # encoding: UTF-8
 
 $: << '.'
+
+$exit_code = 0
+
 require File.dirname(__FILE__) + '/lib/wpscan/wpscan_helper'
 
 def main
@@ -13,7 +16,7 @@ def main
 
     $log = wpscan_options.log
 
-    banner() # called after $log set
+    banner() unless wpscan_options.no_banner # called after $log set
 
     unless wpscan_options.has_options?
       # first parameter only url?
@@ -36,6 +39,8 @@ def main
 
     if wpscan_options.version
       puts "Current version: #{WPSCAN_VERSION}"
+      date = last_update
+      puts "Last DB update: #{date.strftime('%Y-%m-%d')}" unless date.nil?
       exit(0)
     end
 
@@ -45,10 +50,28 @@ def main
       wpscan_options.to_h.merge(max_threads: wpscan_options.threads)
     )
 
-    if wpscan_options.update || missing_db_file?
-      puts "#{notice('[i]')} Updating the Database ..."
+    # check if db file needs upgrade and we are not running in batch mode
+    # also no need to check if the user supplied the --update switch
+    if update_required? && !wpscan_options.batch && !wpscan_options.update
+      puts notice('It seems like you have not updated the database for some time.')
+      print '[?] Do you want to update now? [Y]es [N]o [A]bort, default: [N]'
+      if (input = Readline.readline) =~ /^y/i
+        wpscan_options.update = true
+      elsif input =~ /^a/i
+        puts 'Scan aborted'
+        exit(1)
+      else
+        if missing_db_file?
+          puts critical('You can not run a scan without any databases.')
+          exit(1)
+        end
+      end
+    end
+
+    if wpscan_options.update
+      puts notice('Updating the Database ...')
       DbUpdater.new(DATA_DIR).update(wpscan_options.verbose)
-      puts "#{notice('[i]')} Update completed."
+      puts notice('Update completed.')
       # Exit program if only option --update is used
       exit(0) unless wpscan_options.url
     end
@@ -74,20 +97,24 @@ def main
 
     # Remote website has a redirection?
     if (redirection = wp_target.redirection)
-      if wpscan_options.follow_redirection
-        puts "Following redirection #{redirection}"
+      if redirection =~ /\/wp-admin\/install\.php$/
+        puts critical('The Website is not fully configured and currently in install mode. Call it to create a new admin user.')
       else
-        puts "#{notice('[i]')} The remote host tried to redirect to: #{redirection}"
-        print '[?] Do you want follow the redirection ? [Y]es [N]o [A]bort, default: [N]'
-      end
-      if wpscan_options.follow_redirection || !wpscan_options.batch
-        if wpscan_options.follow_redirection || (input = Readline.readline) =~ /^y/i
-          wpscan_options.url = redirection
-          wp_target = WpTarget.new(redirection, wpscan_options.to_h)
+        if wpscan_options.follow_redirection
+          puts "Following redirection #{redirection}"
         else
-          if input =~ /^a/i
-            puts 'Scan aborted'
-            exit(0)
+          puts notice("The remote host tried to redirect to: #{redirection}")
+          print '[?] Do you want follow the redirection ? [Y]es [N]o [A]bort, default: [N]'
+        end
+        if wpscan_options.follow_redirection || !wpscan_options.batch
+          if wpscan_options.follow_redirection || (input = Readline.readline) =~ /^y/i
+            wpscan_options.url = redirection
+            wp_target = WpTarget.new(redirection, wpscan_options.to_h)
+          else
+            if input =~ /^a/i
+              puts 'Scan aborted'
+              exit(1)
+            end
           end
         end
       end
@@ -106,7 +133,7 @@ def main
     # Remote website is wordpress?
     unless wpscan_options.force
       unless wp_target.wordpress?
-        raise "#{critical('[!]')} The remote website is up, but does not seem to be running WordPress."
+        raise 'The remote website is up, but does not seem to be running WordPress.'
       end
     end
 
@@ -119,51 +146,51 @@ def main
       puts 'You can specify one per command line option (don\'t forget to include the wp-content directory if needed)'
       puts '[?] Continue? [Y]es [N]o, default: [N]'
       if wpscan_options.batch || Readline.readline !~ /^y/i
-        exit(0)
+        exit(1)
       end
     end
 
     # Output runtime data
     start_time   = Time.now
     start_memory = get_memory_usage
-    puts "#{info('[+]')} URL: #{wp_target.url}"
-    puts "#{info('[+]')} Started: #{start_time.asctime}"
+    puts info("URL: #{wp_target.url}")
+    puts info("Started: #{start_time.asctime}")
     puts
 
     if wp_target.wordpress_hosted?
-      puts "#{critical('[!]')} We do not support scanning *.wordpress.com hosted blogs"
+      puts critical('We do not support scanning *.wordpress.com hosted blogs')
     end
 
     if wp_target.has_robots?
-      puts "#{info('[+]')} robots.txt available under: '#{wp_target.robots_url}'"
+      puts info("robots.txt available under: '#{wp_target.robots_url}'")
 
       wp_target.parse_robots_txt.each do |dir|
-        puts "#{info('[+]')} Interesting entry from robots.txt: #{dir}"
+        puts info("Interesting entry from robots.txt: #{dir}")
       end
     end
 
     if wp_target.has_readme?
-      puts "#{warning('[!]')} The WordPress '#{wp_target.readme_url}' file exists exposing a version number"
+      puts warning("The WordPress '#{wp_target.readme_url}' file exists exposing a version number")
     end
 
     if wp_target.has_full_path_disclosure?
-      puts "#{warning('[!]')} Full Path Disclosure (FPD) in: '#{wp_target.full_path_disclosure_url}'"
+      puts warning("Full Path Disclosure (FPD) in '#{wp_target.full_path_disclosure_url}': #{wp_target.full_path_disclosure_data}")
     end
 
     if wp_target.has_debug_log?
-      puts "#{critical('[!]')} Debug log file found: #{wp_target.debug_log_url}"
+      puts critical("Debug log file found: #{wp_target.debug_log_url}")
     end
 
     wp_target.config_backup.each do |file_url|
-      puts "#{critical('[!]')} A wp-config.php backup file has been found in: '#{file_url}'"
+      puts critical("A wp-config.php backup file has been found in: '#{file_url}'")
     end
 
     if wp_target.search_replace_db_2_exists?
-      puts "#{critical('[!]')} searchreplacedb2.php has been found in: '#{wp_target.search_replace_db_2_url}'"
+      puts critical("searchreplacedb2.php has been found in: '#{wp_target.search_replace_db_2_url}'")
     end
 
     wp_target.interesting_headers.each do |header|
-      output = "#{info('[+]')} Interesting header: "
+      output = info('Interesting header: ')
 
       if header[1].class == Array
         header[1].each do |value|
@@ -175,23 +202,23 @@ def main
     end
 
     if wp_target.multisite?
-      puts "#{info('[+]')} This site seems to be a multisite (http://codex.wordpress.org/Glossary#Multisite)"
+      puts info('This site seems to be a multisite (http://codex.wordpress.org/Glossary#Multisite)')
     end
 
     if wp_target.has_must_use_plugins?
-      puts "#{info('[+]')} This site has 'Must Use Plugins' (http://codex.wordpress.org/Must_Use_Plugins)"
+      puts info("This site has 'Must Use Plugins' (http://codex.wordpress.org/Must_Use_Plugins)")
     end
 
     if wp_target.registration_enabled?
-      puts "#{warning('[+]')} Registration is enabled: #{wp_target.registration_url}"
+      puts warning("Registration is enabled: #{wp_target.registration_url}")
     end
 
     if wp_target.has_xml_rpc?
-      puts "#{info('[+]')} XML-RPC Interface available under: #{wp_target.xml_rpc_url}"
+      puts info("XML-RPC Interface available under: #{wp_target.xml_rpc_url}")
     end
 
     if wp_target.upload_directory_listing_enabled?
-      puts "#{warning('[!]')} Upload directory has directory listing enabled: #{wp_target.upload_dir_url}"
+      puts warning("Upload directory has directory listing enabled: #{wp_target.upload_dir_url}")
     end
 
     enum_options = {
@@ -203,13 +230,13 @@ def main
       wp_version.output(wpscan_options.verbose)
     else
       puts
-      puts "#{notice('[i]')} WordPress version can not be detected"
+      puts notice('WordPress version can not be detected')
     end
 
     if wp_theme = wp_target.theme
       puts
       # Theme version is handled in #to_s
-      puts "#{info('[+]')} WordPress theme in use: #{wp_theme}"
+      puts info("WordPress theme in use: #{wp_theme}")
       wp_theme.output(wpscan_options.verbose)
 
       # Check for parent Themes
@@ -219,7 +246,7 @@ def main
 
         parent = wp_theme.get_parent_theme
         puts
-        puts "#{info('[+]')} Detected parent theme: #{parent}"
+        puts info("Detected parent theme: #{parent}")
         parent.output(wpscan_options.verbose)
         wp_theme = parent
       end
@@ -228,65 +255,95 @@ def main
 
     if wpscan_options.enumerate_plugins == nil and wpscan_options.enumerate_only_vulnerable_plugins == nil
       puts
-      puts "#{info('[+]')} Enumerating plugins from passive detection ..."
+      puts info('Enumerating plugins from passive detection ...')
 
       wp_plugins = WpPlugins.passive_detection(wp_target)
       if !wp_plugins.empty?
-        puts " | #{wp_plugins.size} plugins found:"
-
+        if wp_plugins.size == 1
+          puts " | #{wp_plugins.size} plugin found:"
+        else
+          puts " | #{wp_plugins.size} plugins found:"
+        end
         wp_plugins.output(wpscan_options.verbose)
       else
-        puts "#{info('[+]')} No plugins found"
+        puts info('No plugins found')
       end
     end
 
     # Enumerate the installed plugins
     if wpscan_options.enumerate_plugins or wpscan_options.enumerate_only_vulnerable_plugins or wpscan_options.enumerate_all_plugins
       puts
-      puts "#{info('[+]')} Enumerating installed plugins #{'(only vulnerable ones)' if wpscan_options.enumerate_only_vulnerable_plugins} ..."
+      if wpscan_options.enumerate_only_vulnerable_plugins
+        puts info('Enumerating installed plugins (only ones with known vulnerabilities) ...')
+        plugin_enumeration_type = :vulnerable
+      end
+
+      if wpscan_options.enumerate_plugins
+        puts info('Enumerating installed plugins (only ones marked as popular) ...')
+        plugin_enumeration_type = :popular
+      end
+
+      if wpscan_options.enumerate_all_plugins
+        puts info('Enumerating all plugins (may take a while and use a lot of system resources) ...')
+        plugin_enumeration_type = :all
+      end
       puts
 
       wp_plugins = WpPlugins.aggressive_detection(wp_target,
         enum_options.merge(
-          file: wpscan_options.enumerate_all_plugins ? PLUGINS_FULL_FILE : PLUGINS_FILE,
-          only_vulnerable: wpscan_options.enumerate_only_vulnerable_plugins || false
+          file: PLUGINS_FILE,
+          type: plugin_enumeration_type
         )
       )
+
       puts
       if !wp_plugins.empty?
-        puts "#{info('[+]')} We found #{wp_plugins.size} plugins:"
+        puts info("We found #{wp_plugins.size} plugins:")
 
         wp_plugins.output(wpscan_options.verbose)
       else
-        puts "#{info('[+]')} No plugins found"
+        puts info('No plugins found')
       end
     end
 
     # Enumerate installed themes
     if wpscan_options.enumerate_themes or wpscan_options.enumerate_only_vulnerable_themes or wpscan_options.enumerate_all_themes
       puts
-      puts "#{info('[+]')} Enumerating installed themes #{'(only vulnerable ones)' if wpscan_options.enumerate_only_vulnerable_themes} ..."
+      if wpscan_options.enumerate_only_vulnerable_themes
+        puts info('Enumerating installed themes (only ones with known vulnerabilities) ...')
+        theme_enumeration_type = :vulnerable
+      end
+
+      if wpscan_options.enumerate_themes
+        puts info('Enumerating installed themes (only ones marked as popular) ...')
+        theme_enumeration_type = :popular
+      end
+
+      if wpscan_options.enumerate_all_themes
+        puts info('Enumerating all themes (may take a while and use a lot of system resources) ...')
+        theme_enumeration_type = :all
+      end
       puts
 
       wp_themes = WpThemes.aggressive_detection(wp_target,
         enum_options.merge(
-          file: wpscan_options.enumerate_all_themes ? THEMES_FULL_FILE : THEMES_FILE,
-          only_vulnerable: wpscan_options.enumerate_only_vulnerable_themes || false
+          file: THEMES_FILE,
+          type: theme_enumeration_type
         )
       )
       puts
       if !wp_themes.empty?
-        puts "#{info('[+]')} We found #{wp_themes.size} themes:"
+        puts info("We found #{wp_themes.size} themes:")
 
         wp_themes.output(wpscan_options.verbose)
       else
-        puts "#{info('[+]')} No themes found"
+        puts info('No themes found')
       end
     end
 
     if wpscan_options.enumerate_timthumbs
       puts
-      puts "#{info('[+]')} Enumerating timthumb files ..."
+      puts info('Enumerating timthumb files ...')
       puts
 
       wp_timthumbs = WpTimthumbs.aggressive_detection(wp_target,
@@ -297,22 +354,21 @@ def main
       )
       puts
       if !wp_timthumbs.empty?
-        puts "#{info('[+]')} We found #{wp_timthumbs.size} timthumb file/s:"
+        puts info("We found #{wp_timthumbs.size} timthumb file/s:")
 
         wp_timthumbs.output(wpscan_options.verbose)
       else
-        puts "#{info('[+]')} No timthumb files found"
+        puts info('No timthumb files found')
       end
     end
 
     # If we haven't been supplied a username/usernames list, enumerate them...
     if !wpscan_options.username && !wpscan_options.usernames && wpscan_options.wordlist || wpscan_options.enumerate_usernames
       puts
-      puts "#{info('[+]')} Enumerating usernames ..."
+      puts info('Enumerating usernames ...')
 
       if wp_target.has_plugin?('stop-user-enumeration')
-        puts "#{warning('[!]')} Stop User Enumeration plugin detected, results might be empty. " \
-             "However a bypass exists, see stop_user_enumeration_bypass.rb in #{File.expand_path(File.dirname(__FILE__))}"
+        puts warning("Stop User Enumeration plugin detected, results might be empty. However a bypass exists for v1.2.8 and below, see stop_user_enumeration_bypass.rb in #{File.expand_path(File.dirname(__FILE__))}")
       end
 
       wp_users = WpUsers.aggressive_detection(wp_target,
@@ -323,7 +379,7 @@ def main
       )
 
       if wp_users.empty?
-        puts "#{info('[+]')} We did not enumerate any usernames"
+        puts info('We did not enumerate any usernames')
 
         if wpscan_options.wordlist
           puts 'Try supplying your own username with the --username option'
@@ -331,10 +387,10 @@ def main
           exit(1)
         end
       else
-        puts "#{info('[+]')} Identified the following #{wp_users.size} user/s:"
+        puts info("Identified the following #{wp_users.size} user/s:")
         wp_users.output(margin_left: ' ' * 4)
         if wp_users[0].login == "admin"
-           puts "#{warning('[!]')} Default first WordPress username 'admin' is still used"
+           puts warning("Default first WordPress username 'admin' is still used")
         end
       end
 
@@ -358,14 +414,14 @@ def main
         protection_plugin = wp_target.login_protection_plugin()
 
         puts
-        puts "#{warning('[!]')} The plugin #{protection_plugin.name} has been detected. It might record the IP and timestamp of every failed login and/or prevent brute forcing altogether. Not a good idea for brute forcing!"
+        puts warning("The plugin #{protection_plugin.name} has been detected. It might record the IP and timestamp of every failed login and/or prevent brute forcing altogether. Not a good idea for brute forcing!")
         puts '[?] Do you want to start the brute force anyway ? [Y]es [N]o, default: [N]'
 
         bruteforce = false if wpscan_options.batch || Readline.readline !~ /^y/i
       end
 
       if bruteforce
-        puts "#{info('[+]')} Starting the password brute forcer"
+        puts info('Starting the password brute forcer')
 
         begin
           wp_users.brute_force(
@@ -378,7 +434,7 @@ def main
           wp_users.output(show_password: true, margin_left: ' ' * 2)
         end
       else
-        puts "#{critical('[!]')} Brute forcing aborted"
+        puts critical('Brute forcing aborted')
       end
     end
 
@@ -387,13 +443,13 @@ def main
     used_memory = get_memory_usage - start_memory
 
     puts
-    puts info("[+] Finished: #{stop_time.asctime}")
-    puts info("[+] Memory used: #{used_memory.bytes_to_human}")
-    puts info("[+] Elapsed time: #{Time.at(elapsed).utc.strftime('%H:%M:%S')}")
-    exit(0) # must exit!
+    puts info("Finished: #{stop_time.asctime}")
+    puts info("Requests Done: #{@total_requests_done}")
+    puts info("Memory used: #{used_memory.bytes_to_human}")
+    puts info("Elapsed time: #{Time.at(elapsed).utc.strftime('%H:%M:%S')}")
 
-  rescue SystemExit, Interrupt
-
+  rescue Interrupt
+    # do nothing on interrupt
   rescue => e
     puts
     puts critical(e.message)
@@ -412,3 +468,4 @@ def main
 end
 
 main()
+exit($exit_code)

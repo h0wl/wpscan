@@ -17,7 +17,7 @@ describe 'WebSite' do
     )
   end
 
-  describe "#new" do
+  describe '#new' do
     its(:url) { is_expected.to  be === 'http://example.localhost/' }
   end
 
@@ -68,14 +68,14 @@ describe 'WebSite' do
 
   describe '#xml_rpc_url' do
     it 'returns the xmlrpc url' do
-      expect(web_site.xml_rpc_url).to be === "http://example.localhost/xmlrpc.php"
+      expect(web_site.xml_rpc_url).to be === 'http://example.localhost/xmlrpc.php'
     end
   end
 
   describe '#has_xml_rpc?' do
     it 'returns true' do
       stub_request(:get, web_site.xml_rpc_url).
-        to_return(status: 200, body: "XML-RPC server accepts POST requests only")
+        to_return(status: 200, body: 'XML-RPC server accepts POST requests only')
 
       expect(web_site).to have_xml_rpc
     end
@@ -116,12 +116,24 @@ describe 'WebSite' do
 
         expect(web_site.redirection).to eql absolute_location
       end
+
+      context 'when starts with a ?' do
+        it 'returns the absolute URI' do
+          relative_location = '?p=blog'
+          absolute_location = web_site.uri.merge(relative_location).to_s
+
+          stub_request(:get, web_site.url).to_return(status: 301, headers: { location: relative_location })
+          stub_request(:get, absolute_location)
+
+          expect(web_site.redirection).to eql absolute_location
+        end
+      end
     end
 
     context 'when multiple redirections' do
       it 'returns the last redirection' do
-        first_redirection  = 'www.redirection.com'
-        last_redirection   = 'redirection.com'
+        first_redirection  = 'http://www.redirection.com'
+        last_redirection   = 'http://redirection.com'
 
         stub_request(:get, web_site.url).to_return(status: 301, headers: { location: first_redirection })
         stub_request(:get, first_redirection).to_return(status: 302, headers: { location: last_redirection })

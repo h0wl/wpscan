@@ -4,9 +4,8 @@
 class DbUpdater
   FILES = %w(
     local_vulnerable_files.xml local_vulnerable_files.xsd
-    plugins_full.txt plugins.txt themes_full.txt themes.txt
     timthumbs.txt user-agents.txt wp_versions.xml wp_versions.xsd
-    plugin_vulns.json theme_vulns.json wp_vulns.json LICENSE
+    wordpresses.json plugins.json themes.json LICENSE
   )
 
   attr_reader :repo_directory
@@ -22,13 +21,14 @@ class DbUpdater
   def request_params
     {
       ssl_verifyhost: 2,
-      ssl_verifypeer: true
+      ssl_verifypeer: true,
+      accept_encoding: 'gzip, deflate'
     }
   end
 
   # @return [ String ] The raw file URL associated with the given filename
   def remote_file_url(filename)
-    "https://raw.githubusercontent.com/wpscanteam/vulndb/master/#{filename}"
+    "https://wpvulndb.com/data/#{filename}"
   end
 
   # @return [ String ] The checksum of the associated remote filename
@@ -36,8 +36,8 @@ class DbUpdater
     url = "#{remote_file_url(filename)}.sha512"
 
     res = Browser.get(url, request_params)
-    fail "Unable to get #{url}" unless res.code == 200
-    res.body
+    fail DownloadError, res if res.timed_out? || res.code != 200
+    res.body.chomp
   end
 
   def local_file_path(filename)
@@ -72,7 +72,7 @@ class DbUpdater
     file_url  = remote_file_url(filename)
 
     res = Browser.get(file_url, request_params)
-    fail "Error while downloading #{file_url}" unless res.code == 200
+    fail DownloadError, res if res.timed_out? || res.code != 200
     File.open(file_path, 'wb') { |f| f.write(res.body) }
 
     local_file_checksum(filename)
@@ -96,6 +96,7 @@ class DbUpdater
         puts '  [i] Downloading new file' if verbose
         dl_checksum = download(filename)
         puts "  [i] Downloaded File Checksum: #{dl_checksum}" if verbose
+        puts "  [i] Database File Checksum  : #{db_checksum}" if verbose
 
         unless dl_checksum == db_checksum
           fail "#{filename}: checksums do not match"
@@ -111,5 +112,8 @@ class DbUpdater
         end
       end
     end
+
+    # write last_update date to file
+    File.write(LAST_UPDATE_FILE, Time.now)
   end
 end

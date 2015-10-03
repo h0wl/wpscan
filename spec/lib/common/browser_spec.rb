@@ -64,7 +64,7 @@ describe Browser do
 
       it 'raises an error' do
         File.symlink('./testfile', config_file)
-        expect { browser.load_config(config_file) }.to raise_error("[ERROR] Config file is a symlink.")
+        expect { browser.load_config(config_file) }.to raise_error('[ERROR] Config file is a symlink.')
         File.unlink(config_file)
       end
     end
@@ -130,7 +130,7 @@ describe Browser do
         headers: { 'User-Agent' => 'SomeUA' },
         ssl_verifypeer: false, ssl_verifyhost: 0,
         cookiejar: cookie_jar, cookiefile: cookie_jar,
-        timeout: 2000, connecttimeout: 1000,
+        timeout: 60, connecttimeout: 10,
         maxredirs: 3,
         referer: nil
       }

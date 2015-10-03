@@ -6,7 +6,6 @@ DATA_DIR             = File.join(ROOT_DIR, 'data')
 CONF_DIR             = File.join(ROOT_DIR, 'conf')
 CACHE_DIR            = File.join(ROOT_DIR, 'cache')
 WPSCAN_LIB_DIR       = File.join(LIB_DIR, 'wpscan')
-WPSTOOLS_LIB_DIR     = File.join(LIB_DIR, 'wpstools')
 UPDATER_LIB_DIR      = File.join(LIB_DIR, 'updater')
 COMMON_LIB_DIR       = File.join(LIB_DIR, 'common')
 MODELS_LIB_DIR       = File.join(COMMON_LIB_DIR, 'models')
@@ -17,24 +16,19 @@ LOG_FILE             = File.join(ROOT_DIR, 'log.txt')
 # Plugins directories
 COMMON_PLUGINS_DIR   = File.join(COMMON_LIB_DIR, 'plugins')
 WPSCAN_PLUGINS_DIR   = File.join(WPSCAN_LIB_DIR, 'plugins') # Not used ATM
-WPSTOOLS_PLUGINS_DIR = File.join(WPSTOOLS_LIB_DIR, 'plugins')
 
 # Data files
-PLUGINS_FILE        = File.join(DATA_DIR, 'plugins.txt')
-PLUGINS_FULL_FILE   = File.join(DATA_DIR, 'plugins_full.txt')
-PLUGINS_VULNS_FILE  = File.join(DATA_DIR, 'plugin_vulns.json')
-THEMES_FILE         = File.join(DATA_DIR, 'themes.txt')
-THEMES_FULL_FILE    = File.join(DATA_DIR, 'themes_full.txt')
-THEMES_VULNS_FILE   = File.join(DATA_DIR, 'theme_vulns.json')
-WP_VULNS_FILE       = File.join(DATA_DIR, 'wp_vulns.json')
-WP_VERSIONS_FILE    = File.join(DATA_DIR, 'wp_versions.xml')
-LOCAL_FILES_FILE    = File.join(DATA_DIR, 'local_vulnerable_files.xml')
-# VULNS_XSD           = File.join(DATA_DIR, 'vuln.xsd')
-WP_VERSIONS_XSD     = File.join(DATA_DIR, 'wp_versions.xsd')
-LOCAL_FILES_XSD     = File.join(DATA_DIR, 'local_vulnerable_files.xsd')
-USER_AGENTS_FILE    = File.join(DATA_DIR, 'user-agents.txt')
+WORDPRESSES_FILE  = File.join(DATA_DIR, 'wordpresses.json')
+PLUGINS_FILE      = File.join(DATA_DIR, 'plugins.json')
+THEMES_FILE       = File.join(DATA_DIR, 'themes.json')
+WP_VERSIONS_FILE  = File.join(DATA_DIR, 'wp_versions.xml')
+LOCAL_FILES_FILE  = File.join(DATA_DIR, 'local_vulnerable_files.xml')
+WP_VERSIONS_XSD   = File.join(DATA_DIR, 'wp_versions.xsd')
+LOCAL_FILES_XSD   = File.join(DATA_DIR, 'local_vulnerable_files.xsd')
+USER_AGENTS_FILE  = File.join(DATA_DIR, 'user-agents.txt')
+LAST_UPDATE_FILE  = File.join(DATA_DIR, '.last_update')
 
-WPSCAN_VERSION       = '2.6'
+WPSCAN_VERSION       = '2.8'
 
 $LOAD_PATH.unshift(LIB_DIR)
 $LOAD_PATH.unshift(WPSCAN_LIB_DIR)
@@ -42,7 +36,7 @@ $LOAD_PATH.unshift(MODELS_LIB_DIR)
 
 def kali_linux?
   begin
-    File.readlines("/etc/debian_version").grep(/^kali/i).any?
+    File.readlines('/etc/debian_version').grep(/^kali/i).any?
   rescue
     false
   end
@@ -50,14 +44,18 @@ end
 
 require 'environment'
 
+def escape_glob(s)
+  s.gsub(/[\\\{\}\[\]\*\?]/) { |x| '\\' + x }
+end
+
 # TODO : add an exclude pattern ?
 def require_files_from_directory(absolute_dir_path, files_pattern = '*.rb')
-  files = Dir[File.join(absolute_dir_path, files_pattern)]
+  files = Dir[File.join(escape_glob(absolute_dir_path), files_pattern)]
 
   # Files in the root dir are loaded first, then those in the subdirectories
-  files.sort_by { |file| [file.count("/"), file] }.each do |f|
+  files.sort_by { |file| [file.count('/'), file] }.each do |f|
     f = File.expand_path(f)
-    #puts "require #{f}" # Used for debug
+    # puts "require #{f}" # Used for debug
     require f
   end
 end
@@ -78,6 +76,20 @@ def missing_db_file?
     return true unless File.exist?(File.join(DATA_DIR, db_file))
   end
   false
+end
+
+def last_update
+  date = nil
+  if File.exists?(LAST_UPDATE_FILE)
+    content = File.read(LAST_UPDATE_FILE)
+    date = Time.parse(content) rescue nil
+  end
+  date
+end
+
+def update_required?
+  date = last_update
+  (true if date.nil?) or (date < 5.days.ago)
 end
 
 # Define colors
@@ -110,19 +122,21 @@ def blue(text)
 end
 
 def critical(text)
-  red(text)
+  $exit_code += 1 if defined?($exit_code) # hack for undefined var via rspec
+  "#{red('[!]')} #{text}"
 end
 
 def warning(text)
-  amber(text)
+  $exit_code += 1 if defined?($exit_code) # hack for undefined var via rspec
+  "#{amber('[!]')} #{text}"
 end
 
 def info(text)
-  green(text)
+  "#{green('[+]')} #{text}"
 end
 
 def notice(text)
-  blue(text)
+  "#{blue('[i]')} #{text}"
 end
 
 # our 1337 banner

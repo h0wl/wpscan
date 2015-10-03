@@ -19,6 +19,7 @@ class WpscanOptions
     :proxy_auth,
     :threads,
     :url,
+    :vhost,
     :wordlist,
     :force,
     :update,
@@ -41,7 +42,8 @@ class WpscanOptions
     :cache_ttl,
     :request_timeout,
     :connect_timeout,
-    :max_threads
+    :max_threads,
+    :no_banner
   ]
 
   attr_accessor *ACCESSOR_OPTIONS
@@ -58,6 +60,10 @@ class WpscanOptions
     url = Addressable::URI.parse(url).normalize.to_s unless url.ascii_only?
 
     @url = URI.parse(add_http_protocol(url)).to_s
+  end
+
+  def vhost=(vhost)
+    @vhost = vhost
   end
 
   def threads=(threads)
@@ -245,6 +251,7 @@ class WpscanOptions
   def self.get_opt_long
     GetoptLong.new(
       ['--url', '-u', GetoptLong::REQUIRED_ARGUMENT],
+      ['--vhost',GetoptLong::OPTIONAL_ARGUMENT],
       ['--enumerate', '-e', GetoptLong::OPTIONAL_ARGUMENT],
       ['--username', '-U', GetoptLong::REQUIRED_ARGUMENT],
       ['--usernames', GetoptLong::REQUIRED_ARGUMENT],
@@ -273,7 +280,8 @@ class WpscanOptions
       ['--batch', GetoptLong::NO_ARGUMENT],
       ['--no-color', GetoptLong::NO_ARGUMENT],
       ['--cookie', GetoptLong::REQUIRED_ARGUMENT],
-      ['--log', GetoptLong::NO_ARGUMENT]
+      ['--log', GetoptLong::NO_ARGUMENT],
+      ['--no-banner', GetoptLong::NO_ARGUMENT]
     )
   end
 

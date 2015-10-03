@@ -1,6 +1,93 @@
 # Changelog
 ## Master
-[Work in progress](https://github.com/wpscanteam/wpscan/compare/2.6...master)
+[Work in progress](https://github.com/wpscanteam/wpscan/compare/2.8...master)
+
+## Version 2.8
+Released: 2015-06-22
+
+New
+* Warn the user to update his DB files
+* Added last db update to --version option (see #815)
+* Add db checksum to verbose logging during update
+* Option to hide banner
+* Continue if user chooses not to update + db exists
+* Don't update if user chooses default + no DBs exist
+* Updates request timeout values to realistic ones (and in seconds)
+
+Removed
+* Removed `Time.parse('2000-01-01')` expedient
+* Removed unnecessary 'return' and '()'
+* Removed debug output
+* Removed wpstools
+
+General core
+* Update to Ruby 2.2.2
+* Switch to mitre
+* Install bundler gem README
+* Switch from gnutls to openssl
+
+Fixed issues
+* Fix #789 - Add blackarch to readme
+* Fix #790 - Consider the target down after 30 requests timed out requests instead of 10
+* Fix #791 - Rogue character causing the scan of non-wordpress site to crash
+* Fix #792 - Adds the HttpError exception
+* Fix #795 - Remove GHOST warning
+* Fix #796 - Do not swallow exit code
+* Fix #797 - Increases the timeout values
+* Fix #801 - Forces UTF-8 encoding when enumerating usernames
+* Fix #803 - Increases default connect-timeout to 10s
+* Fix #804 - Updates the Theme detection pattern
+* Fix #816 - Ignores potential non version chars in theme version detection
+* Fix #819 - Removes potential spaces in robots.txt entries
+
+WPScan Database Statistics:
+* Total vulnerable versions: 98
+* Total vulnerable plugins:  1076
+* Total vulnerable themes:   361
+* Total version vulnerabilities: 1104
+* Total plugin vulnerabilities:  1763
+* Total theme vulnerabilities:   443
+
+## Version 2.7
+Released: 2015-03-16
+
+New
+* Detects version in release date format
+* Copyrights updated
+* WP version detection from stylesheets
+* New license
+* Global HTTP request counter
+* Add security-protection plugin detection
+* Add GHOST warning if XMLRPC enabled
+* Update databases from wpvulndb.com
+* Enumerate usernames from WP <= 3.0 (thanks berotti3)
+
+Removed
+* README.txt
+
+General core
+* Update to Ruby 2.2.1
+* Update to Ruby 2.2.0
+* Add addressable gem
+* Update Typhoeus gem to 0.7.0
+* IDN support: encode non-ascii domain names (thanks dctabuyz)
+* Improve page hash calculation (thanks dctabuyz)
+* Version detection regex improved
+
+Fixed issues
+* Fix #745 - Plugin version pattern in readme.txt file not detected
+* Fix #746 - Add a global counter for all active requests to server.
+* Fix #747 - Add 'security-protection' plugin to wp_login_protection module
+* Fix #753 - undefined method `round' for "10":String for request or connect timeouts
+* Fix #760 - typhoeus issue (infinite loop) 
+
+WPScan Database Statistics:
+* Total vulnerable versions: 89
+* Total vulnerable plugins:  953
+* Total vulnerable themes:   329
+* Total version vulnerabilities: 1070
+* Total plugin vulnerabilities:  1451
+* Total theme vulnerabilities:   378
 
 ## Version 2.6
 Released: 2014-12-19

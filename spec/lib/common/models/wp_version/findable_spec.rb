@@ -65,6 +65,11 @@ describe 'WpVersion::Findable' do
           @fixture  = '/3.5_minified.html'
           @expected = '3.5'
         end
+
+        it 'returns 3.5.1' do
+          @fixture  = '/3.5.1_mobile.html'
+          @expected = '3.5.1'
+        end
       end
 
     end
@@ -178,7 +183,7 @@ describe 'WpVersion::Findable' do
 
     context 'when no version found' do
       it 'returns nil' do
-        stub_all_to_nil()
+        stub_all_to_nil
         @expected = nil
       end
     end
@@ -188,8 +193,8 @@ describe 'WpVersion::Findable' do
       found_from = method[/^find_from_(.*)/, 1].sub('_', ' ')
 
       context "when found from #{found_from}" do
-        it "returns the correct WpVersion" do
-          stub_all_to_nil()
+        it 'returns the correct WpVersion' do
+          stub_all_to_nil
 
           allow(WpVersion).to receive(method).and_return(number)
 

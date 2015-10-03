@@ -15,7 +15,6 @@ class WebSite
       @uri.clone.merge('robots.txt').to_s
     end
 
-
     # Parse robots.txt
     # @return [ Array ] URLs generated from robots.txt
     def parse_robots_txt
@@ -29,6 +28,7 @@ class WebSite
       if entries
         entries.flatten!
         entries.compact.sort!
+        entries.uniq!
         wordpress_path = @uri.path
         RobotsTxt.known_dirs.each do |d|
           entries.delete(d)
@@ -40,9 +40,9 @@ class WebSite
         entries.each do |d|
           begin
             temp = @uri.clone
-            temp.path = d
+            temp.path = d.strip
           rescue URI::Error
-            temp = d
+            temp = d.strip
           end
           return_object << temp.to_s
         end
